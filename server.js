@@ -29,7 +29,7 @@ const Message = mongoose.model('Message', messageSchema);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/welcome.html');
+    res.sendFile(__dirname + '/index.html');
 });
 
 app.get('/chat', (req, res) => {
