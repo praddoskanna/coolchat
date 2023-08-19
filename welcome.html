@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title >Welcome to CoolChat</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+
+<body>
+    <div class="welcome-container">
+        <h1>Welcome to <span class="app-name">CoolChat</span></h1>
+        <form id="welcome-form"  action="/chat">
+            <input id="username" class="input-field" placeholder="Enter your username" autocomplete="off" required />
+            <button type="submit" class="btn-enter">Enter Chat</button>
+        </form>
+    </div>
+</body>
+<script>
+    document.getElementById('welcome-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        sessionStorage.setItem('username', username);
+        window.location.href = '/chat';
+    });
+</script>
+
+</html>

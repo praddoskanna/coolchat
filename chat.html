@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Cool Chat</title>
+    <link rel="stylesheet" type="text/css" href="chat.css">
+</head>
+
+<body>
+    <div class="header">
+        <h1>Welcome to CoolChat, <span id="username"></span>!</h1>
+        <button id="logout-button">Logout</button>
+    </div>
+    <div class="sidebar">
+        <h5>Online Users</h5>
+        <ul id="user-list"></ul>
+    </div>
+    <div id="toast-container">
+        <div id="toast"></div>
+    </div>
+    <ul id="messages"></ul>
+    <div id="typing-indicator"></div>
+
+    <form id="form" action="">
+        <input id="input" autocomplete="off" placeholder="Start Typing  .  .  . " required /><button
+            style="cursor: pointer;">Send</button>
+    </form>
+
+    <div id="private-chat-container">
+        <div id="private-chat-header"></div>
+        <button class="close-button" id="close-private-chat">X</button>
+        <div id="private-chat-box">
+            <ul id="private-chat-messages"></ul>
+        </div>
+        <form id="private-chat-form">
+            <input id="private-chat-input" autocomplete="off" placeholder="Start Typing..." required />
+            <button style="cursor: pointer;">Send</button>
+        </form>
+    </div>
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var socket = io();
+
+
+    var form = document.getElementById('form');
+    var input = document.getElementById('input');
+    var nickname = sessionStorage.getItem('username');
+
+
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (input.value && nickname) {
+            const message = {
+                nickname: nickname,
+                text: input.value
+            }
+            socket.emit('chat message', message);
+            input.value = '';
+
+        }
+    })
+
+
+    socket.on('welcome', function (msg) {
+        displayToast('You are now Connected. Start Typing')
+
+    })
+
+    socket.on('user joined', function (msg) {
+        if (msg !== username) {
+            displayToast(`${msg} has joined the chat`)
+        }
+    })
+
+    socket.on('user left', function (nickname) {
+        displayToast(`${nickname} has left the chat`); // Display a toast when a user disconnects
+    });
+
+    // var item = document.createElement('li');
+    // if (msg.text.nickname === username) {
+    //     item.innerHTML = `<strong>You:</strong> ${msg.text.text}`;
+    // } else {
+    //     item.innerHTML = `<strong>${msg.text.nickname}:</strong> ${msg.text.text}`;
+    // }
+    // messages.appendChild(item);
+    // window.scrollTo(0, document.body.scrollHeight);
+
+    socket.on('chat message', function (messages) {
+        const messagesList = document.getElementById('messages');
+        messagesList.innerHTML = ''; // Clear previous messages
+
+        messages.forEach((msg) => {
+            const item = document.createElement('li');
+            item.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+            messagesList.appendChild(item);
+        });
+
+        window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on('load messages', function (messages) {
+        const messagesList = document.getElementById('messages');
+        messagesList.innerHTML = ''; // Clear previous messages
+
+        messages.forEach((msg) => {
+            const item = document.createElement('li');
+            if (msg.sender === username) {
+                item.innerHTML = `<strong>You:</strong> ${msg.text}`;
+            }
+            else {
+                item.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+            }
+
+            messagesList.appendChild(item);
+        });
+
+        window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    function displayToast(message) {
+        var toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.style.display = 'block';
+        setTimeout(function () {
+            toast.style.display = 'none';
+        }, 1000);
+    }
+
+    const username = sessionStorage.getItem('username');
+
+    if (username) {
+        document.getElementById('username').textContent = username;
+    }
+
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    input.addEventListener('input', () => {
+        socket.emit('typing', username);
+    });
+    input.addEventListener('focus', () => {
+        socket.emit('typing', username);
+    });
+    input.addEventListener('blur', () => {
+        socket.emit('stopped typing', username);
+    });
+
+    socket.on('user typing', (typingUser) => {
+        typingIndicator.textContent = `${typingUser} is typing...`;
+    });
+
+    // Hide typing indicator
+    socket.on('user stopped typing', () => {
+        typingIndicator.textContent = '';
+    });
+
+    socket.on('online users', (users) => {
+        const userList = document.getElementById('user-list');
+        userList.innerHTML = ''; // Clear previous list
+
+        for (const userId in users) {
+            const userItem = document.createElement('li');
+            if (username === users[userId]) {
+                userItem.textContent = 'You';
+            }
+            else {
+                userItem.textContent = users[userId];
+            }
+            userList.appendChild(userItem);
+        }
+    });
+
+    const userList = document.getElementById('user-list');
+    userList.addEventListener('click', (event) => {
+        const targetUser = event.target.textContent;
+        if (targetUser !== 'You') {
+            startPrivateConversation(targetUser);
+        }
+    });
+
+
+    function startPrivateConversation(targetUser) {
+        // console.log("User",targetUser)
+
+        const privateChatBox = document.getElementById('private-chat-box');
+        privateChatBox.innerHTML = '';
+
+        const privateChatHeader = document.getElementById('private-chat-header');
+        privateChatHeader.textContent = `Private Chat with ${targetUser}`;
+
+        const privateChatContainer = document.getElementById('private-chat-container');
+        privateChatContainer.style.display = 'block';
+
+        socket.emit('start private chat', targetUser);
+    }
+
+    const privateChatContainer = document.getElementById('private-chat-container');
+    const closePrivateChatButton = document.getElementById('close-private-chat');
+    const privateChatForm = document.getElementById('private-chat-form');
+    const privateChatInput = document.getElementById('private-chat-input');
+    // const privateChatMessages = document.getElementById('private-chat-messages');
+    const privateChatBox = document.getElementById('private-chat-box');
+
+    closePrivateChatButton.addEventListener('click', () => {
+        privateChatContainer.style.display = 'none';
+    });
+
+    privateChatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const privateChatHeader = document.getElementById('private-chat-header');
+        const message = privateChatInput.value;
+        if (message.trim() !== '') {
+            socket.emit('private message', {
+                targetUser: privateChatHeader.textContent.replace('Private Chat with ', ''),
+                text: message
+            });
+            privateChatInput.value = '';
+        }
+    });
+
+    function displayPrivateMessage(sender, text, isUser) {
+
+        // if(sender)
+        const messageItem = document.createElement('div');
+        messageItem.classList.add('private-message');
+
+        if (sender === username) {
+            messageItem.innerHTML = `<strong>You:</strong> ${text}`;
+            messageItem.classList.add('user-message');
+        }
+        else {
+            messageItem.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        }
+        privateChatBox.appendChild(messageItem);
+        privateChatBox.scrollTop = privateChatBox.scrollHeight;
+    }
+
+    socket.on('private message', (data) => {
+        displayPrivateMessage(data.sender, data.text, false);
+    });
+
+
+
+
+    // create user on connect
+    socket.on('connect', () => {
+        socket.emit('setUsername', username);
+        socket.emit('online users', username);
+    });
+
+
+
+    // remove user on logout 
+    const logoutButton = document.getElementById('logout-button');
+    logoutButton.addEventListener('click', () => {
+        sessionStorage.removeItem('username');
+        window.location.href = '/';
+    });
+</script>
+
+</html>
